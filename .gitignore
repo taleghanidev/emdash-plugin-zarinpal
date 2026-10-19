@@ -1,0 +1,3 @@
+node_modules/
+# dist/ is committed on purpose so the plugin installs straight from GitHub.
+.DS_Store

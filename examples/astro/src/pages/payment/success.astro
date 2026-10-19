@@ -1,0 +1,56 @@
+---
+/**
+ * Zarinpal sends the buyer here after a verified payment:
+ *   /payment/success?payment=<id>&token=<receipt token>
+ * The receipt route checks the token, so nobody can read another receipt.
+ */
+import Base from "../../layouts/Base.astro";
+import { zarinpal } from "../../lib/zarinpal";
+
+export const prerender = false;
+
+const payment = Astro.url.searchParams.get("payment") ?? "";
+const token = Astro.url.searchParams.get("token") ?? "";
+const result = await zarinpal(Astro.locals, Astro.url, "receipt", {
+	method: "GET",
+	query: { payment, token },
+});
+const r = result.ok ? (result.data.payment as Record<string, any>) : null;
+const unit = r?.currency === "IRR" ? "ریال" : "تومان";
+
+// Fulfil here (or in a webhook-like job) by asking the plugin's server-side
+// `payment` route for { paid, amount, orderId } with your API key, and mark
+// the order fulfilled once. Never fulfil from query parameters alone.
+---
+
+<Base title="پرداخت موفق">
+	<div dir="rtl" class="receipt">
+		{
+			r?.paid ? (
+				<>
+					<h1>✅ پرداخت موفق بود</h1>
+					<dl>
+						<dt>مبلغ</dt><dd>{r.amount.toLocaleString("fa-IR")} {unit}</dd>
+						<dt>بابت</dt><dd>{r.description}</dd>
+						<dt>کد پیگیری زرین‌پال</dt><dd><code>{r.refId}</code></dd>
+						<dt>زمان</dt><dd>{new Date(r.verifiedAt).toLocaleString("fa-IR")}</dd>
+					</dl>
+					{r.environment === "sandbox" && <p class="note">حالت آزمایشی (Sandbox): پولی جابه‌جا نشد.</p>}
+				</>
+			) : (
+				<>
+					<h1>رسید پیدا نشد</h1>
+					<p>اگر مبلغی کسر شده، تا چند دقیقه دیگر خودکار بررسی می‌شود.</p>
+				</>
+			)
+		}
+		<p><a href="/">بازگشت به سایت</a></p>
+	</div>
+</Base>
+
+<style>
+	.receipt { max-width: 32rem; margin: 2rem auto; font-family: Vazirmatn, Tahoma, sans-serif; }
+	dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1.5rem; }
+	dt { color: #666; }
+	.note { background: #fff7d6; padding: 0.6rem 0.8rem; border-radius: 0.5rem; }
+</style>

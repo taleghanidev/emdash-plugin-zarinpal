@@ -1,0 +1,43 @@
+---
+/**
+ * Demo page with both ways to take a payment:
+ *  1. a payment-link button (no server code; price set in the admin);
+ *  2. a server-side checkout form (price set in your code).
+ * Replace the link id with one from Plugins → Zarinpal → Payment links.
+ */
+import Base from "../layouts/Base.astro";
+import ZarinpalButton from "../components/ZarinpalButton.astro";
+
+export const prerender = false;
+const linkId = Astro.url.searchParams.get("link") ?? import.meta.env.PUBLIC_ZARINPAL_LINK ?? "lnk_replace_me";
+---
+
+<Base title="Shop">
+	<div dir="rtl" class="shop">
+		<h1>فروشگاه</h1>
+
+		<section>
+			<h2>۱. دکمهٔ لینک پرداخت</h2>
+			<p>بلیت کارگاه — قیمت در پنل مدیریت تعیین شده است.</p>
+			<ZarinpalButton link={linkId} label="خرید بلیت کارگاه" askMobile />
+		</section>
+
+		<section>
+			<h2>۲. پرداخت از سمت سرور</h2>
+			<form method="post" action="/api/checkout" class="checkout">
+				<label><input type="radio" name="product" value="linux-basics" checked /> دورهٔ مقدمات لینوکس — ۱٬۵۰۰٬۰۰۰ تومان</label>
+				<label><input type="radio" name="product" value="docker-workshop" /> کارگاه داکر — ۲٬۹۰۰٬۰۰۰ تومان</label>
+				<input name="mobile" inputmode="numeric" placeholder="09xxxxxxxxx" aria-label="Mobile" />
+				<button type="submit">پرداخت</button>
+			</form>
+		</section>
+	</div>
+</Base>
+
+<style>
+	.shop { max-width: 36rem; margin: 2rem auto; font-family: Vazirmatn, Tahoma, sans-serif; }
+	section { border: 1px solid #e5e5e5; border-radius: 0.75rem; padding: 1rem 1.25rem; margin: 1.25rem 0; }
+	.checkout { display: grid; gap: 0.6rem; }
+	.checkout input[name="mobile"] { padding: 0.6rem; border: 1px solid #ccc; border-radius: 0.5rem; }
+	.checkout button { background: #ffc800; border: 0; border-radius: 0.5rem; padding: 0.7rem 1.4rem; font-weight: 600; cursor: pointer; justify-self: start; }
+</style>

@@ -1,0 +1,29 @@
+---
+/**
+ * Cancelled, declined or not-yet-confirmed payments land here:
+ *   /payment/failed?payment=<id>&reason=<code>
+ * A "failed" payment is still re-verified for six hours, so a buyer whose
+ * bank was slow is not lost.
+ */
+import Base from "../../layouts/Base.astro";
+import { FAILURE_TEXT } from "../../lib/zarinpal";
+
+export const prerender = false;
+const reason = Astro.url.searchParams.get("reason") ?? "";
+const text = FAILURE_TEXT[reason] ?? "پرداخت انجام نشد.";
+---
+
+<Base title="پرداخت ناموفق">
+	<div dir="rtl" class="receipt">
+		<h1>❌ پرداخت ناموفق</h1>
+		<p>{text}</p>
+		<p class="code">کد: <code>{reason || "unknown"}</code></p>
+		<p>اگر مبلغی از حساب شما کسر شده، طی ۷۲ ساعت توسط بانک بازگردانده می‌شود.</p>
+		<p><a href="/shop">تلاش دوباره</a></p>
+	</div>
+</Base>
+
+<style>
+	.receipt { max-width: 32rem; margin: 2rem auto; font-family: Vazirmatn, Tahoma, sans-serif; }
+	.code { color: #666; }
+</style>

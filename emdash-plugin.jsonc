@@ -1,0 +1,100 @@
+{
+	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "zarinpal",
+	"name": "Zarinpal",
+	// Replace with your own Atmosphere DID before `pnpm run publish`.
+	"publisher": "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
+
+	"license": "MIT",
+	"author": { "name": "Mehdi Taleghani", "url": "https://linuxacademy.ir" },
+	"security": { "email": "security@linuxacademy.ir" },
+	"description": "Zarinpal payments for EmDash: payment links, a server checkout API, verified callbacks, automatic reconciliation and a ledger.",
+	"keywords": ["zarinpal", "payments", "iran", "rial", "checkout"],
+	"repo": "https://github.com/taleghanidev/emdash-plugin-zarinpal",
+
+	// Trust contract. The only outbound hosts are Zarinpal's live and sandbox
+	// gateways. Nothing else: no content, media, users or email access.
+	"capabilities": ["network:request"],
+	"allowedHosts": ["payment.zarinpal.com", "sandbox.zarinpal.com"],
+
+	"storage": {
+		// One record per payment attempt.
+		"payments": {
+			"indexes": [
+				"status",
+				"createdAt",
+				"authority",
+				"orderId",
+				"linkId",
+				"nextCheckAt",
+				"updatedAt",
+				["status", "createdAt"]
+			]
+		},
+		// Fixed-price payment links that editors create in the admin.
+		"links": { "indexes": ["createdAt", "active"] }
+	},
+
+	"admin": {
+		"pages": [
+			{ "path": "/payments", "label": "Zarinpal payments", "icon": "list" },
+			{ "path": "/links", "label": "Payment links", "icon": "link" }
+		],
+		"widgets": [{ "id": "summary", "title": "Zarinpal", "size": "third" }],
+		"settingsSchema": {
+			"merchantId": {
+				"type": "secret",
+				"label": "Merchant ID",
+				"description": "The 36-character merchant code from your Zarinpal panel. In sandbox mode any UUID works."
+			},
+			"sandbox": {
+				"type": "boolean",
+				"label": "Sandbox mode",
+				"description": "Send payments to sandbox.zarinpal.com. Turn off to take real money.",
+				"default": true
+			},
+			"currency": {
+				"type": "select",
+				"label": "Default currency",
+				"description": "Unit for amounts that do not name one. Zarinpal verifies in the same unit the payment was created in.",
+				"options": [
+					{ "value": "IRT", "label": "Toman (IRT)" },
+					{ "value": "IRR", "label": "Rial (IRR)" }
+				],
+				"default": "IRT"
+			},
+			"siteUrl": {
+				"type": "url",
+				"label": "Public site URL",
+				"description": "Origin used for the Zarinpal callback and the return pages, for example https://example.ir. Leave empty to use the site URL from EmDash settings. It must match the domain registered for your Zarinpal terminal.",
+				"placeholder": "https://example.ir"
+			},
+			"successPath": {
+				"type": "string",
+				"label": "Success page path",
+				"description": "Where buyers land after a verified payment. The plugin appends ?payment=<id>&token=<receipt token>.",
+				"default": "/payment/success"
+			},
+			"failurePath": {
+				"type": "string",
+				"label": "Failure page path",
+				"description": "Where buyers land after a cancelled or failed payment. The plugin appends ?payment=<id>&reason=<code>.",
+				"default": "/payment/failed"
+			},
+			"apiKey": {
+				"type": "secret",
+				"label": "Checkout API key",
+				"description": "Shared secret for the server-side checkout and payment-status routes. Leave empty to disable them. Use a long random value and never put it in browser code."
+			},
+			"rateLimit": {
+				"type": "number",
+				"label": "New payments per minute",
+				"description": "Upper bound on new payment attempts per minute across the payment-link form and the checkout API.",
+				"default": 30,
+				"min": 1,
+				"max": 1000
+			}
+		}
+	}
+}

@@ -1,0 +1,57 @@
+---
+/**
+ * A pay button for a payment link created in the admin
+ * (Plugins → Zarinpal → Payment links). Usage:
+ *   <ZarinpalButton link="lnk_..." label="پرداخت ۲۵۰٬۰۰۰ تومان" />
+ */
+interface Props {
+	link: string;
+	label?: string;
+	askMobile?: boolean;
+}
+const { link, label = "پرداخت با زرین‌پال", askMobile = false } = Astro.props;
+---
+
+<form class="zarinpal-pay" data-link={link} data-endpoint="/_emdash/api/plugins/zarinpal/pay">
+	{askMobile && <input name="mobile" inputmode="numeric" placeholder="09xxxxxxxxx" aria-label="Mobile" />}
+	<button type="submit">{label}</button>
+</form>
+
+<script>
+	document.addEventListener("submit", async (event) => {
+		const target = event.target as HTMLElement | null;
+		const form = target?.closest?.("form.zarinpal-pay") as HTMLFormElement | null;
+		if (!form) return;
+		event.preventDefault();
+		const button = form.querySelector("button");
+		if (button) button.disabled = true;
+		const fields = new FormData(form);
+		try {
+			const res = await fetch(form.dataset.endpoint!, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					link: form.dataset.link,
+					email: fields.get("email") || undefined,
+					mobile: fields.get("mobile") || undefined,
+				}),
+			});
+			const out = (await res.json()).data;
+			if (out?.ok && /^https:\/\/(payment|sandbox)\.zarinpal\.com\//.test(out.paymentUrl)) {
+				location.href = out.paymentUrl;
+				return;
+			}
+			alert(`Payment could not start: ${out?.error ?? res.status}`);
+		} catch {
+			alert("Payment could not start. Please try again.");
+		}
+		if (button) button.disabled = false;
+	});
+</script>
+
+<style>
+	.zarinpal-pay { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+	.zarinpal-pay button { background: #ffc800; color: #111; border: 0; border-radius: 0.5rem; padding: 0.7rem 1.4rem; font-weight: 600; cursor: pointer; }
+	.zarinpal-pay button:disabled { opacity: 0.6; cursor: wait; }
+	.zarinpal-pay input { padding: 0.6rem; border: 1px solid #ccc; border-radius: 0.5rem; }
+</style>

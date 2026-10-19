@@ -1,0 +1,9 @@
+{
+	"name": "emdash-plugin-zarinpal-e2e",
+	"private": true,
+	"type": "module",
+	"description": "Playwright end-to-end runs against a local EmDash site and the real Zarinpal sandbox.",
+	"dependencies": {
+		"playwright": "1.64.1"
+	}
+}

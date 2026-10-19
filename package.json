@@ -1,6 +1,6 @@
 {
 	"name": "emdash-plugin-zarinpal",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Zarinpal payment gateway plugin for EmDash CMS on Cloudflare Workers and Node.js: payment links, server checkout, verified callbacks, reconciliation and an admin ledger.",
 	"license": "MIT",
 	"author": "Mehdi Taleghani",

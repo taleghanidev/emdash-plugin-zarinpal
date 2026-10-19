@@ -1,6 +1,6 @@
 {
   "id": "zarinpal",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "declaredAccess": {
     "network": {
       "request": {
@@ -28,6 +28,7 @@
         "linkId",
         "nextCheckAt",
         "updatedAt",
+        "reservation",
         [
           "status",
           "createdAt"

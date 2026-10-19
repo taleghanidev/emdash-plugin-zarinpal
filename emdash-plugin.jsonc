@@ -29,6 +29,7 @@
 				"linkId",
 				"nextCheckAt",
 				"updatedAt",
+				"reservation",
 				["status", "createdAt"]
 			]
 		},

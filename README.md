@@ -11,9 +11,11 @@ Accept Iranian Rial and Toman payments on an [EmDash CMS](https://emdashcms.com)
 - **Verified callbacks.** A payment becomes *paid* only when Zarinpal's verify call confirms it. The `Status=OK` in the return URL is never trusted.
 - **Automatic reconciliation.** A cron job re-verifies unsettled payments in the background, so a buyer who paid and closed the tab is not lost. An outage never makes the plugin give up on a payment.
 - **Admin ledger.** Filter payments, see Zarinpal reference IDs, card masks and fees, re-verify one payment, and watch a dashboard widget.
-- **Sandboxed and least-privilege.** It runs in EmDash's plugin sandbox and can only reach `payment.zarinpal.com` and `sandbox.zarinpal.com`. It cannot read your content, media or users.
+- **Sandboxed and least-privilege.** In EmDash's plugin sandbox it can only reach `payment.zarinpal.com` and `sandbox.zarinpal.com`, and cannot read your content, media or users. On the Cloudflare free plan you can run it in-process instead, without that isolation. See [Choose how the plugin runs](#1-choose-how-the-plugin-runs).
 
 Tested against the live Zarinpal sandbox on 19 October 2026 with EmDash 1.3.1. See [Testing](#testing).
+
+Project page: https://taleghanidev.github.io/emdash-plugin-zarinpal/
 
 ## Contents
 
@@ -57,7 +59,7 @@ Buyer          Your site (EmDash + plugin)            Zarinpal
 | What | Why |
 | --- | --- |
 | EmDash **1.3** or newer | The plugin uses the 1.3 sandbox route contract. |
-| A sandbox runner | On Cloudflare this is Worker Loader, which needs the **Workers Paid** plan. On Node.js it is `@emdash-cms/sandbox-workerd`. |
+| A sandbox runner, or in-process mode | On Cloudflare the sandbox is Worker Loader, which needs the **Workers Paid** plan. On the free plan, run the plugin in-process instead. On Node.js the sandbox is `@emdash-cms/sandbox-workerd`. |
 | `EMDASH_ENCRYPTION_KEY` | The merchant ID and API key are encrypted settings. |
 | A Zarinpal merchant ID | Any UUID works in sandbox mode. For live payments the terminal's registered domain must match your site, or Zarinpal answers `-14`. |
 
@@ -65,9 +67,24 @@ Buyer          Your site (EmDash + plugin)            Zarinpal
 
 These steps assume a site created from an EmDash `*-cloudflare` template, which already has a `src/worker.ts`.
 
-### 1. Enable sandboxed plugins
+### 1. Choose how the plugin runs
 
-Worker Loader needs the [Workers Paid plan](https://developers.cloudflare.com/dynamic-workers/pricing/). If you created the site with `--sandboxed-plugins`, this step is already done.
+EmDash can run this plugin in two ways on Cloudflare:
+
+| | Sandboxed (recommended) | In-process |
+| --- | --- | --- |
+| Cloudflare plan | Workers Paid | Free or Paid |
+| Registered under | `sandboxed: [zarinpal]` with `sandboxRunner: sandbox()` | `plugins: [zarinpal]` |
+| Isolation | Own Dynamic Worker; can only reach Zarinpal's two hosts | Runs inside your site's Worker with its full authority |
+| Limits | 10 subrequests and 50 ms CPU per plugin call | Your Worker's limits, shared with EmDash. Workers Free allows [10 ms CPU per request](https://developers.cloudflare.com/workers/platform/limits/#cpu-time) |
+
+**Why sandboxing needs the paid plan:** EmDash runs each sandboxed plugin as a separate [Dynamic Worker](https://developers.cloudflare.com/dynamic-workers/), created through the Worker Loader binding, and Cloudflare offers Dynamic Workers only on the [Workers Paid plan](https://developers.cloudflare.com/dynamic-workers/pricing/). Without the binding, EmDash skips plugins listed under `sandboxed: []`.
+
+**On the free plan,** list the plugin under `plugins: []` and skip the rest of this step. EmDash's own docs describe this as running a sandboxed plugin [in-process](https://github.com/emdash-cms/emdash/blob/main/docs/src/content/docs/plugins/creating-plugins/choosing-a-format.mdx). The plugin's `ctx` calls are still capability-checked, but there is no isolation boundary: in-process code runs with your Worker's full authority, including its secrets and bindings. Install it this way only if you trust the code, which you can read in `src/`.
+
+What was checked for in-process mode: on the Cloudflare template with no Worker Loader binding, the plugin loads, its admin pages render and its routes answer. A full payment on a deployed free-plan Worker has not been run yet. The plugin's own work per request is small, but it shares the free plan's 10 ms CPU budget with EmDash.
+
+To use the sandbox, enable Worker Loader. If you created the site with `--sandboxed-plugins`, this is already done.
 
 Uncomment the binding in `wrangler.jsonc`:
 
@@ -96,7 +113,7 @@ export default {
 pnpm add github:taleghanidev/emdash-plugin-zarinpal
 ```
 
-The built files in `dist/` are committed, so no build step runs on install. Pin a release with `github:taleghanidev/emdash-plugin-zarinpal#v0.1.0`.
+The built files in `dist/` are committed, so no build step runs on install. Pin a release with `github:taleghanidev/emdash-plugin-zarinpal#v0.1.1`.
 
 ### 3. Register it in `astro.config.mjs`
 
@@ -118,6 +135,8 @@ export default defineConfig({
 			storage: r2({ binding: "MEDIA" }),
 			sandboxRunner: sandbox(),
 			sandboxed: [zarinpal],
+			// Free plan instead: remove the two lines above and use
+			// plugins: [zarinpal],
 		}),
 	],
 });
@@ -373,11 +392,11 @@ Use **Actions → Verify now** on any unsettled row to check one payment immedia
 
 ```sh
 pnpm install
-pnpm test          # manifest validation + 31 tests through EmDash's Cloudflare sandbox runner
+pnpm test          # manifest validation + 36 tests through EmDash's Cloudflare sandbox runner
 pnpm run typecheck
 ```
 
-The tests use `@emdash-cms/plugin-test`, which loads the built plugin through EmDash's production Worker Loader wrapper with mocked Zarinpal responses. They cover idempotency and restarts, forged `NOK` callbacks, `-51` followed by a later payment, gateway outages, merchant ID changes, orders with several attempts, rate limits, link payments and the admin pages.
+Most tests use `@emdash-cms/plugin-test`, which loads the built plugin through EmDash's production Worker Loader wrapper with mocked Zarinpal responses. They cover idempotency and restarts, including a slow request racing its own retry, forged `NOK` callbacks, `-51` followed by a later payment, gateway outages, merchant ID changes, orders with several attempts, rate limits, link payments and the admin pages.
 
 End-to-end runs use Playwright against the real `sandbox.zarinpal.com` and a real EmDash site. The scripts are in `e2e/`:
 

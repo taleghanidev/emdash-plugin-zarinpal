@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zarinpal for EmDash</title>
+<meta name="description" content="Accept Rial and Toman payments on an EmDash CMS site through the Zarinpal gateway. Runs on Cloudflare Workers and Node.js.">
+<meta property="og:title" content="Zarinpal for EmDash">
+<meta property="og:description" content="Payment links, server checkout, verified callbacks and automatic reconciliation for EmDash CMS.">
+<meta property="og:image" content="https://taleghanidev.github.io/emdash-plugin-zarinpal/screenshots/10-payments-ledger.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Vazirmatn:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+	--bg: #fbfaf7;
+	--surface: #ffffff;
+	--ink: #16181d;
+	--muted: #5d6370;
+	--line: #e7e4dc;
+	--accent: #ffc800;
+	--accent-ink: #1b1600;
+	--blue: #0b3cff;
+	--code-bg: #14161b;
+	--code-ink: #e9e7e1;
+	--ok: #127a3a;
+	--shadow: 0 1px 2px rgba(20, 20, 30, .06), 0 8px 28px rgba(20, 20, 30, .07);
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #0f1115;
+		--surface: #171a20;
+		--ink: #eceae4;
+		--muted: #a2a7b2;
+		--line: #2a2e37;
+		--code-bg: #0b0c10;
+		--shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px rgba(0, 0, 0, .35);
+	}
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--ink);
+	font: 16px/1.6 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+	-webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+header.top {
+	position: sticky; top: 0; z-index: 10;
+	background: color-mix(in srgb, var(--bg) 88%, transparent);
+	backdrop-filter: blur(10px);
+	border-bottom: 1px solid var(--line);
+}
+header.top .wrap { display: flex; align-items: center; gap: 16px; height: 60px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; }
+.brand .mark {
+	width: 28px; height: 28px; border-radius: 8px; background: var(--accent);
+	display: grid; place-items: center; color: var(--accent-ink); font-weight: 800;
+}
+nav.links { margin-left: auto; display: flex; gap: 18px; font-size: 14px; }
+nav.links a { text-decoration: none; color: var(--muted); }
+nav.links a:hover { color: var(--ink); }
+@media (max-width: 720px) { nav.links .hide-sm { display: none; } }
+
+.hero { padding: 72px 0 40px; }
+.eyebrow {
+	display: inline-flex; gap: 8px; align-items: center;
+	font-size: 13px; font-weight: 600; color: var(--muted);
+	border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; background: var(--surface);
+}
+.eyebrow .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+h1 { font-size: clamp(34px, 5.4vw, 58px); line-height: 1.05; letter-spacing: -0.03em; margin: 18px 0 16px; }
+h1 em { font-style: normal; background: linear-gradient(transparent 62%, var(--accent) 62%); }
+.lede { font-size: clamp(17px, 2vw, 20px); color: var(--muted); max-width: 680px; margin: 0 0 28px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn {
+	display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+	padding: 12px 18px; border-radius: 10px; font-weight: 600; font-size: 15px;
+	border: 1px solid var(--line); background: var(--surface);
+}
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.btn:hover { transform: translateY(-1px); }
+.hero-shot {
+	margin-top: 44px; border-radius: 14px; overflow: hidden;
+	border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface);
+}
+.hero-shot img { display: block; width: 100%; height: auto; }
+
+section { padding: 56px 0; }
+h2 { font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -0.02em; margin: 0 0 10px; }
+.sub { color: var(--muted); margin: 0 0 28px; max-width: 700px; }
+
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.card {
+	background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+	padding: 20px; box-shadow: var(--shadow);
+}
+.card h3 { margin: 0 0 6px; font-size: 17px; }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+.card .ic { font-size: 22px; margin-bottom: 8px; }
+
+.flow { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); counter-reset: step; }
+.flow .card { position: relative; padding-top: 44px; }
+.flow .card::before {
+	counter-increment: step; content: counter(step);
+	position: absolute; top: 14px; left: 20px; width: 24px; height: 24px; border-radius: 50%;
+	background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 13px;
+	display: grid; place-items: center;
+}
+
+.gallery { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+figure { margin: 0; }
+figure a { display: block; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface); }
+figure img { display: block; width: 100%; height: 200px; object-fit: cover; object-position: top left; transition: transform .3s; }
+figure a:hover img { transform: scale(1.02); }
+figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+
+pre {
+	background: var(--code-bg); color: var(--code-ink); border-radius: 12px; padding: 18px 20px;
+	overflow-x: auto; font: 13.5px/1.65 "JetBrains Mono", ui-monospace, monospace; margin: 0;
+}
+pre .c { color: #7d8594; }
+pre .k { color: #ffc800; }
+pre .s { color: #9fe0a8; }
+.steps { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+.step, .card, figure { min-width: 0; }
+.step h3 { margin: 0 0 8px; font-size: 17px; }
+.step p { margin: 0 0 10px; color: var(--muted); }
+
+table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 15px; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 13px; color: var(--muted); font-weight: 600; background: color-mix(in srgb, var(--surface) 70%, var(--bg)); }
+tr:last-child td { border-bottom: 0; }
+.table-scroll { overflow-x: auto; }
+code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .92em; }
+td code, p code, li code { background: color-mix(in srgb, var(--accent) 22%, transparent); padding: 1px 5px; border-radius: 5px; }
+
+.stats { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.stat .n { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+.stat .l { color: var(--muted); font-size: 14px; }
+
+.fa { direction: rtl; text-align: right; font-family: Vazirmatn, Tahoma, sans-serif; }
+.fa h2, .fa h3 { font-family: Vazirmatn, Tahoma, sans-serif; letter-spacing: 0; }
+.fa pre { direction: ltr; text-align: left; }
+.fa ul { padding-right: 20px; padding-left: 0; }
+
+footer { border-top: 1px solid var(--line); padding: 28px 0 48px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<header class="top">
+	<div class="wrap">
+		<a class="brand" href="#"><span class="mark">ز</span> Zarinpal for EmDash</a>
+		<nav class="links">
+			<a href="#features" class="hide-sm">Features</a>
+			<a href="#install">Install</a>
+			<a href="#screens" class="hide-sm">Screens</a>
+			<a href="#fa">فارسی</a>
+			<a href="https://github.com/taleghanidev/emdash-plugin-zarinpal">GitHub</a>
+		</nav>
+	</div>
+</header>
+
+<main>
+<section class="hero">
+	<div class="wrap">
+		<span class="eyebrow"><span class="dot"></span> v0.1.1 · tested against the live Zarinpal sandbox</span>
+		<h1>Take <em>Rial &amp; Toman</em> payments on your EmDash site.</h1>
+		<p class="lede">A Zarinpal gateway plugin for EmDash CMS on Cloudflare Workers and Node.js. Payment links, a server-side checkout API, verified callbacks, automatic reconciliation and an admin ledger, all in one sandboxed plugin.</p>
+		<div class="cta">
+			<a class="btn primary" href="#install">Install in 5 minutes</a>
+			<a class="btn" href="https://github.com/taleghanidev/emdash-plugin-zarinpal">View on GitHub</a>
+			<a class="btn" href="https://github.com/taleghanidev/emdash-plugin-zarinpal#readme">Full guide</a>
+		</div>
+		<div class="hero-shot">
+			<img src="screenshots/10-payments-ledger.png" alt="The Zarinpal payments ledger in the EmDash admin, showing a paid and a pending payment" width="1600" height="1029">
+		</div>
+	</div>
+</section>
+
+<section id="features">
+	<div class="wrap">
+		<h2>Built for real money</h2>
+		<p class="sub">Every rule below came from testing against Zarinpal's sandbox and a five-round code review.</p>
+		<div class="grid">
+			<div class="card"><div class="ic">🔗</div><h3>Payment links</h3><p>Set a price in the admin and paste a button on any page. No server code needed.</p></div>
+			<div class="card"><div class="ic">🧾</div><h3>Server checkout API</h3><p>Your code sets the price and order ID. Idempotency keys mean a retry never creates a second payment.</p></div>
+			<div class="card"><div class="ic">✅</div><h3>Verified, never assumed</h3><p>A payment is paid only when Zarinpal's verify call says so. <code>Status=OK</code> in the URL is never trusted.</p></div>
+			<div class="card"><div class="ic">🔁</div><h3>Automatic reconciliation</h3><p>Buyers who pay and close the tab are found in the background. Outages never make the plugin give up.</p></div>
+			<div class="card"><div class="ic">📊</div><h3>Admin ledger</h3><p>Filters, reference IDs, card masks, fees, a details view, <em>Verify now</em> and a dashboard widget.</p></div>
+			<div class="card"><div class="ic">🛡️</div><h3>Least privilege</h3><p>In EmDash's sandbox its only permission is calling <code>payment.zarinpal.com</code> and <code>sandbox.zarinpal.com</code>. No access to content, media or users.</p></div>
+		</div>
+	</div>
+</section>
+
+<section>
+	<div class="wrap">
+		<h2>How a payment works</h2>
+		<p class="sub">The plugin stores the payment before it talks to Zarinpal, and verifies with the amount and currency it stored.</p>
+		<div class="flow">
+			<div class="card"><h3>Buyer clicks Pay</h3><p>The plugin records the payment and asks Zarinpal for an authority.</p></div>
+			<div class="card"><h3>Buyer pays at the bank</h3><p>On Zarinpal's page, in Rial or Toman.</p></div>
+			<div class="card"><h3>Callback verifies</h3><p>Only a <code>100</code> or <code>101</code> from verify marks it paid.</p></div>
+			<div class="card"><h3>Your site fulfils</h3><p>Server code asks the plugin until the payment is settled, checks order, amount, currency and environment, and fulfils exactly once.</p></div>
+		</div>
+	</div>
+</section>
+
+<section id="install">
+	<div class="wrap">
+		<h2>Install</h2>
+		<p class="sub">For a site made from an EmDash <code>*-cloudflare</code> template. The <a href="https://github.com/taleghanidev/emdash-plugin-zarinpal#readme">README</a> also covers Node.js and every setting.</p>
+		<div class="steps">
+			<div class="step">
+				<h3>1. Add the package</h3>
+<pre><span class="k">pnpm add</span> github:taleghanidev/emdash-plugin-zarinpal#v0.1.1</pre>
+			</div>
+			<div class="step">
+				<h3>2. Register it in <code>astro.config.mjs</code></h3>
+<pre><span class="k">import</span> { d1, r2, sandbox } <span class="k">from</span> <span class="s">"@emdash-cms/cloudflare"</span>;
+<span class="k">import</span> zarinpal <span class="k">from</span> <span class="s">"emdash-plugin-zarinpal"</span>;
+
+emdash({
+  database: d1({ binding: <span class="s">"DB"</span> }),
+  storage: r2({ binding: <span class="s">"MEDIA"</span> }),
+  <span class="c">// Workers Paid: isolated sandbox (recommended).</span>
+  <span class="c">// Also needs the LOADER binding and PluginBridge export.</span>
+  sandboxRunner: sandbox(),
+  sandboxed: [zarinpal],
+  <span class="c">// Workers Free: replace the two lines above with</span>
+  <span class="c">// plugins: [zarinpal],</span>
+})</pre>
+				<p>The sandbox needs a <code>worker_loaders</code> binding named <code>LOADER</code> and <code>PluginBridge</code> exported from <code>src/worker.ts</code>. See <a href="https://github.com/taleghanidev/emdash-plugin-zarinpal#1-choose-how-the-plugin-runs">sandbox setup</a>.</p>
+			</div>
+			<div class="step">
+				<h3>3. Set the secrets and copy the return pages</h3>
+<pre><span class="k">npx</span> emdash secrets generate
+<span class="k">npx</span> wrangler secret put EMDASH_ENCRYPTION_KEY
+<span class="k">npx</span> wrangler secret put ZARINPAL_API_KEY   <span class="c"># only for server checkout</span>
+<span class="k">cp</span> -R node_modules/emdash-plugin-zarinpal/examples/astro/src/* src/</pre>
+			</div>
+			<div class="step">
+				<h3>4. Deploy and configure</h3>
+				<p>Run <code>pnpm run deploy</code>, open <strong>Plugins → zarinpal → settings</strong>, enter your merchant ID (any UUID in sandbox mode) and your site URL. The domain must match the one registered for your Zarinpal terminal.</p>
+			</div>
+		</div>
+
+		<h3 style="margin-top:40px">Which mode should I use on Cloudflare?</h3>
+		<div class="table-scroll">
+		<table>
+			<tr><th></th><th>Sandboxed</th><th>In-process</th></tr>
+			<tr><td>Cloudflare plan</td><td>Workers Paid</td><td>Free or Paid</td></tr>
+			<tr><td>Config</td><td><code>sandboxed: [zarinpal]</code></td><td><code>plugins: [zarinpal]</code></td></tr>
+			<tr><td>Isolation</td><td>Own Dynamic Worker, can reach only Zarinpal</td><td>None: runs inside your site's Worker with its full authority, including secrets. Install only if you trust the code.</td></tr>
+			<tr><td>Limits</td><td>10 subrequests, 50 ms CPU per plugin call</td><td>Your Worker's limits, shared with EmDash (Free: 10 ms CPU per request)</td></tr>
+			<tr><td>Tested</td><td>Unit tests through the Cloudflare sandbox runner; browser runs on Node's workerd sandbox</td><td>Loads, admin renders and routes answer on the Cloudflare template; no deployed payment yet</td></tr>
+			<tr><td>Why</td><td colspan="2">EmDash runs sandboxed plugins as Cloudflare <a href="https://developers.cloudflare.com/dynamic-workers/">Dynamic Workers</a>, which are only on the <a href="https://developers.cloudflare.com/dynamic-workers/pricing/">Workers Paid plan</a>.</td></tr>
+		</table>
+		</div>
+	</div>
+</section>
+
+<section id="screens">
+	<div class="wrap">
+		<h2>Screens</h2>
+		<p class="sub">Captured by the Playwright end-to-end run against <code>sandbox.zarinpal.com</code>. Click to enlarge.</p>
+		<div class="gallery">
+			<figure><a href="screenshots/02-settings.png"><img loading="lazy" src="screenshots/02-settings.png" alt="Plugin settings form"></a><figcaption>Settings, generated by EmDash. Secrets are encrypted.</figcaption></figure>
+			<figure><a href="screenshots/05-payment-links.png"><img loading="lazy" src="screenshots/05-payment-links.png" alt="Payment links admin page with button code"></a><figcaption>Payment links with ready-to-paste button code.</figcaption></figure>
+			<figure><a href="screenshots/06-shop.png"><img loading="lazy" src="screenshots/06-shop.png" alt="Demo shop page with a pay button and a server checkout form"></a><figcaption>Demo shop: link button and server checkout.</figcaption></figure>
+			<figure><a href="screenshots/07-zarinpal-sandbox-gateway.png"><img loading="lazy" src="screenshots/07-zarinpal-sandbox-gateway.png" alt="Zarinpal sandbox payment page"></a><figcaption>Zarinpal's sandbox payment page.</figcaption></figure>
+			<figure><a href="screenshots/08-success-receipt.png"><img loading="lazy" src="screenshots/08-success-receipt.png" alt="Persian receipt page after a verified payment"></a><figcaption>Receipt after a verified payment.</figcaption></figure>
+			<figure><a href="screenshots/09-failed-cancelled.png"><img loading="lazy" src="screenshots/09-failed-cancelled.png" alt="Failure page after a cancelled payment"></a><figcaption>Failure page after the buyer cancels.</figcaption></figure>
+			<figure><a href="screenshots/12-payment-details.png"><img loading="lazy" src="screenshots/12-payment-details.png" alt="Payment details with reference ID, card mask and fee"></a><figcaption>Payment details: ref ID, card, fee, callback.</figcaption></figure>
+			<figure><a href="screenshots/14-verify-now-recovered.png"><img loading="lazy" src="screenshots/14-verify-now-recovered.png" alt="Verify now recovering a payment whose buyer never returned"></a><figcaption>Recovering a buyer who paid and closed the tab.</figcaption></figure>
+			<figure><a href="screenshots/13-dashboard-widget.png"><img loading="lazy" src="screenshots/13-dashboard-widget.png" alt="EmDash dashboard with the Zarinpal widget"></a><figcaption>Dashboard widget.</figcaption></figure>
+		</div>
+	</div>
+</section>
+
+<section>
+	<div class="wrap">
+		<h2>Tested, not just written</h2>
+		<p class="sub">Run on 19 October 2026 with EmDash 1.3.1.</p>
+		<div class="stats">
+			<div class="stat"><div class="n">36</div><div class="l">tests through EmDash's Cloudflare sandbox runner</div></div>
+			<div class="stat"><div class="n">3</div><div class="l">real browser flows against the Zarinpal sandbox</div></div>
+			<div class="stat"><div class="n">6</div><div class="l">rounds of design and code review with Codex</div></div>
+			<div class="stat"><div class="n">1</div><div class="l">permission: call Zarinpal's two hosts</div></div>
+		</div>
+	</div>
+</section>
+
+<section id="fa" class="fa" lang="fa">
+	<div class="wrap">
+		<h2>راهنمای فارسی</h2>
+		<p class="sub">افزونهٔ درگاه زرین‌پال برای سایت‌های EmDash روی Cloudflare Workers یا Node.js.</p>
+		<div class="grid">
+			<div class="card"><h3>لینک پرداخت</h3><p>مبلغ را در پنل مدیریت تعیین کنید و دکمهٔ پرداخت را در هر صفحه بگذارید.</p></div>
+			<div class="card"><h3>پرداخت از سمت سرور</h3><p>کد سایت شما مبلغ و شمارهٔ سفارش را تعیین می‌کند؛ تکرار درخواست، پرداخت دوم نمی‌سازد.</p></div>
+			<div class="card"><h3>تأیید واقعی</h3><p>پرداخت فقط وقتی «پرداخت‌شده» است که متد verify زرین‌پال آن را تأیید کند.</p></div>
+			<div class="card"><h3>بررسی خودکار</h3><p>اگر خریدار پرداخت کند و به سایت برنگردد، افزونه پرداخت را پیدا می‌کند.</p></div>
+		</div>
+		<h3 style="margin-top:32px">نصب</h3>
+<pre>pnpm add github:taleghanidev/emdash-plugin-zarinpal#v0.1.1</pre>
+		<ul>
+			<li>در <code>astro.config.mjs</code> افزونه را با <code>sandboxed: [zarinpal]</code> (پلن پولی Workers، ایزوله) یا <code>plugins: [zarinpal]</code> (پلن رایگان، بدون ایزوله‌سازی؛ فقط اگر به کد اعتماد دارید) ثبت کنید.</li>
+			<li>کلید رمزنگاری را با <code>npx emdash secrets generate</code> بسازید و با <code>wrangler secret put</code> ذخیره کنید.</li>
+			<li>صفحه‌های نمونهٔ پوشهٔ <code>examples/astro</code> را در سایت کپی کنید.</li>
+			<li>در تنظیمات افزونه مرچنت‌کد و نشانی سایت را وارد کنید؛ دامنه باید با دامنهٔ ثبت‌شده در زرین‌پال یکی باشد.</li>
+		</ul>
+		<p><a href="https://github.com/taleghanidev/emdash-plugin-zarinpal#راهنمای-فارسی">راهنمای کامل در گیت‌هاب</a></p>
+	</div>
+</section>
+</main>
+
+<footer>
+	<div class="wrap">
+		<span>MIT © Mehdi Taleghani · Not affiliated with Zarinpal or Cloudflare.</span>
+		<span><a href="https://github.com/taleghanidev/emdash-plugin-zarinpal">GitHub</a> · <a href="https://emdashcms.com">EmDash</a> · <a href="https://www.zarinpal.com/docs/paymentGateway/connectToGateway">Zarinpal docs</a></span>
+	</div>
+</footer>
+</body>
+</html>

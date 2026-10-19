@@ -44,6 +44,11 @@ export interface Payment {
 	mobile: string | null;
 	idempotencyKey: string | null;
 	payloadHash: string | null;
+	/**
+	 * Random token of the current reservation. A restart replaces it, so a
+	 * slow earlier request can no longer write its authority or error.
+	 */
+	reservation: string;
 	receiptToken: string;
 	createdAt: string;
 	/** When the current authority was issued; restarts reset it. */
@@ -106,8 +111,9 @@ const NOT_PAID_CODES = new Set([-51, -54]);
 /** Uncertain outcomes are re-checked at least this often, without end. */
 export const MAX_BACKOFF_MS = 180 * 60_000;
 /**
- * A reservation without an authority older than this is abandoned: a
- * sandboxed call is cut off after 30 seconds of wall time.
+ * A reservation without an authority older than this may be restarted. A
+ * sandboxed call is cut off after 30 seconds; an in-process call may run
+ * longer, which is why every write is also fenced by the reservation token.
  */
 export const STALE_RESERVATION_MS = 45_000;
 
@@ -344,6 +350,7 @@ export async function createPayment(
 		mobile: input.mobile,
 		idempotencyKey: input.idempotencyKey,
 		payloadHash,
+		reservation: randomToken(12),
 		receiptToken: randomToken(),
 		createdAt: now,
 		attemptAt: null,
@@ -401,6 +408,7 @@ export async function createPayment(
 			env: cfg.env,
 			merchantRef: cfg.merchantRef,
 			authority: null,
+			reservation: randomToken(12),
 			updatedAt: now,
 			lastError: null,
 			lastErrorCode: null,
@@ -427,7 +435,7 @@ export async function createPayment(
 	if (!result.ok || !result.authority) {
 		const failed = !result.ok ? result : { code: null, message: "No authority", uncertain: false };
 		await store.updateIf(id, {
-			where: { status: "pending", authority: null },
+			where: { status: "pending", authority: null, reservation: record.reservation },
 			set: {
 				status: "error",
 				lastError: failed.message,
@@ -447,7 +455,7 @@ export async function createPayment(
 	const authority = result.authority;
 	const nextCheckAt = new Date(Date.now() + FIRST_CHECK_DELAY_MS).toISOString();
 	const saved = await store.updateIf(id, {
-		where: { status: "pending", authority: null },
+		where: { status: "pending", authority: null, reservation: record.reservation },
 		set: { authority, nextCheckAt, attemptAt: nowIso(), checks: 0, updatedAt: nowIso() },
 	});
 	if (!saved.applied) {

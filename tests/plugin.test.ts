@@ -379,6 +379,19 @@ describe("review fixes", () => {
 		expect(retried).toMatchObject({ ok: true, paymentUrl: "https://sandbox.zarinpal.com/pg/StartPay/S0000000000000000000000000000000stl2" });
 	});
 
+	it("refuses to start while another live reservation holds the key", async () => {
+		await configure();
+		await host.http.respond(`${SANDBOX}/request.json`, requestOk("S0000000000000000000000000000000fen1"));
+		const first = await checkout({ idempotencyKey: "order-fence-1" });
+		const rec = await host.inspect.storage.get<any>("payments", first.paymentId);
+		// Another request has just claimed the reservation and is still running.
+		await host.fixtures.plugin.storage("payments", first.paymentId, { ...rec, authority: null, reservation: "someone-else", updatedAt: new Date().toISOString() });
+		expect((await checkout({ idempotencyKey: "order-fence-1" })).error).toBe("IN_PROGRESS");
+		const after = await host.inspect.storage.get<any>("payments", first.paymentId);
+		expect(after.authority).toBeNull();
+		expect(after.reservation).toBe("someone-else");
+	});
+
 	it("never expires a payment because of an outage, but expires a definite not-paid answer", async () => {
 		await configure();
 		await host.http.respond(`${SANDBOX}/request.json`, requestOk("S0000000000000000000000000000000old1"));

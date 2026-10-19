@@ -7,7 +7,7 @@
 /** @type {import("emdash").PluginDescriptor} */
 const descriptor = Object.freeze({
 	"id": "zarinpal",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"format": "standard",
 	"entrypoint": "emdash-plugin-zarinpal/sandbox",
 	"capabilities": [
@@ -27,6 +27,7 @@ const descriptor = Object.freeze({
 				"linkId",
 				"nextCheckAt",
 				"updatedAt",
+				"reservation",
 				[
 					"status",
 					"createdAt"

@@ -3,12 +3,13 @@
 
 	"slug": "zarinpal",
 	"name": "Zarinpal",
-	// Replace with your own Atmosphere DID before `pnpm run publish`.
+	// Not published to the EmDash registry: install from GitHub (see README).
+	// To publish, replace with your own Atmosphere DID and run `pnpm run publish`.
 	"publisher": "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
 
 	"license": "MIT",
 	"author": { "name": "Mehdi Taleghani", "url": "https://linuxacademy.ir" },
-	"security": { "email": "security@linuxacademy.ir" },
+	"security": { "url": "https://github.com/taleghanidev/emdash-plugin-zarinpal/security/advisories/new" },
 	"description": "Zarinpal payments for EmDash: payment links, a server checkout API, verified callbacks, automatic reconciliation and a ledger.",
 	"keywords": ["zarinpal", "payments", "iran", "rial", "checkout"],
 	"repo": "https://github.com/taleghanidev/emdash-plugin-zarinpal",
